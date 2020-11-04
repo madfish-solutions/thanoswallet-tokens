@@ -1,15 +1,26 @@
 {
+  "name": "@thanos-wallet/tokens",
   "version": "0.1.0",
-  "license": "MIT",
   "main": "dist/index.js",
+  "module": "dist/thanoswallet-tokens.esm.js",
   "typings": "dist/index.d.ts",
   "files": [
     "dist",
     "src"
   ],
-  "engines": {
-    "node": ">=10"
+  "license": "MIT",
+  "author": {
+    "name": "Madfish Solutions",
+    "email": "info@madfish.solutions"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madfish-solutions/thanoswallet-tokens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/madfish-solutions/thanoswallet-tokens/issues"
+  },
+  "homepage": "https://github.com/madfish-solutions/thanoswallet-tokens#readme",
   "scripts": {
     "start": "tsdx watch",
     "build": "tsdx build",
@@ -19,37 +30,19 @@
     "size": "size-limit",
     "analyze": "size-limit --why"
   },
-  "peerDependencies": {},
+  "peerDependencies": {
+    "@taquito/taquito": "^7.0.0 || ^7.0.0-beta"
+  },
+  "devDependencies": {
+    "@taquito/taquito": "^7.0.0-beta.0",
+    "husky": "^4.3.0",
+    "tsdx": "^0.14.1",
+    "tslib": "^2.0.3",
+    "typescript": "^4.0.5"
+  },
   "husky": {
     "hooks": {
       "pre-commit": "tsdx lint"
     }
-  },
-  "prettier": {
-    "printWidth": 80,
-    "semi": true,
-    "singleQuote": true,
-    "trailingComma": "es5"
-  },
-  "name": "thanoswallet-tokens",
-  "author": "serh11p",
-  "module": "dist/thanoswallet-tokens.esm.js",
-  "size-limit": [
-    {
-      "path": "dist/thanoswallet-tokens.cjs.production.min.js",
-      "limit": "10 KB"
-    },
-    {
-      "path": "dist/thanoswallet-tokens.esm.js",
-      "limit": "10 KB"
-    }
-  ],
-  "devDependencies": {
-    "@size-limit/preset-small-lib": "^4.7.0",
-    "husky": "^4.3.0",
-    "size-limit": "^4.7.0",
-    "tsdx": "^0.14.1",
-    "tslib": "^2.0.3",
-    "typescript": "^4.0.5"
   }
 }
