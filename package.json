@@ -37,6 +37,7 @@
     "@taquito/taquito": "^7.0.0-beta.0",
     "bignumber.js": "^9.0.1",
     "husky": "^4.3.0",
+    "jest-fetch-mock": "^3.0.3",
     "size-limit": "^4.7.0",
     "tsdx": "^0.14.1",
     "tslib": "^2.0.3",

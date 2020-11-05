@@ -1,7 +1,8 @@
 export enum MetadataParseErrorCode {
   INVALID_CONTRACT_ADDRESS,
   INVALID_NETWORK_NAME,
-  INVALID_NETWORK_RPC_ID
+  INVALID_NETWORK_RPC_ID,
+  FETCH_URL_ERROR
 }
 
 export class MetadataParseError extends Error {
@@ -49,5 +50,18 @@ export class InvalidRpcIdError extends MetadataParseError {
     public payload: InvalidRpcIdPayload
   ) {
     super(message, MetadataParseErrorCode.INVALID_NETWORK_RPC_ID);
+  }
+}
+
+export type FetchURLErrorPayload = {
+  response: Response;
+};
+
+export class FetchURLError extends MetadataParseError {
+  constructor(
+    message: string | undefined,
+    public payload: FetchURLErrorPayload
+  ) {
+    super(message, MetadataParseErrorCode.FETCH_URL_ERROR);
   }
 }

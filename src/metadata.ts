@@ -2,6 +2,7 @@ import { BigMapAbstraction, TezosToolkit } from "@taquito/taquito";
 import { loadContract, validateContractAddress } from "./contracts";
 import { loadChainId } from "./rpc";
 import {
+  FetchURLError,
   InvalidContractAddressError,
   InvalidNetworkNameError,
   InvalidRpcIdError
@@ -23,7 +24,7 @@ function hexToUTF8(str1: string) {
 export async function getTokenMetadata(
   tezos: TezosToolkit,
   contractAddress: string,
-  expectedNetworkId: string,
+  toolkitNetworkId: string,
   key?: string
 ): Promise<any> {
   const contract = await loadContract(tezos, contractAddress);
@@ -44,7 +45,11 @@ export async function getTokenMetadata(
           if (response.ok) {
             return response.json();
           }
-          return storage;
+          console.error(response.status);
+          throw new FetchURLError(
+            `Error received while fetching ${rawStorageKey}`,
+            { response }
+          );
         });
       }
       const contractKeyResult = OTHER_CONTRACT_KEY_REGEX.exec(rawStorageKey);
@@ -75,17 +80,17 @@ export async function getTokenMetadata(
         if (
           networkTag &&
           !networkTagIsChainId &&
-          expectedNetworkId !== networkTag
+          toolkitNetworkId !== networkTag
         ) {
           throw new InvalidNetworkNameError(
-            `${networkTag} network was specified, which is not expected network`,
+            `${networkTag} network was specified, which is not network of given Tezos toolkit`,
             { name: networkTag }
           );
         }
         return getTokenMetadata(
           tezos,
           contractAddress,
-          expectedNetworkId,
+          toolkitNetworkId,
           storageKey
         );
       }
@@ -95,7 +100,9 @@ export async function getTokenMetadata(
         )
       );
     }
-    return hexToUTF8((await metadata.get(decodeURIComponent(key))) as string);
+    return JSON.parse(
+      hexToUTF8((await metadata.get(decodeURIComponent(key))) as string)
+    );
   }
   if (storage.token_metadata instanceof BigMapAbstraction) {
     const metadata: BigMapAbstraction = storage.token_metadata;
