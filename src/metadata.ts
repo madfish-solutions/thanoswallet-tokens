@@ -1,6 +1,5 @@
 import { BigMapAbstraction, TezosToolkit } from "@taquito/taquito";
 import { loadContract, validateContractAddress } from "./contracts";
-import { loadChainId } from "./rpc";
 import {
   FetchURLError,
   InvalidContractAddressError,
@@ -8,9 +7,15 @@ import {
   InvalidRpcIdError
 } from "./types";
 
+const STORAGE_KEY_REGEX = /^tezos-storage:./;
 const OTHER_CONTRACT_KEY_REGEX = /^\/\/(KT[A-z0-9]+)(\.[A-z0-9]+)?\/([^/]+)/;
 const RPC_ID_TAG_REGEX = /^Net[A-z0-9]{12}$/;
 const URL_PATTERN = /^((?:http(s)?:\/\/)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)|(http(s)?:\/\/localhost:[0-9]+)$/;
+const KNOWN_CHAIN_IDS = new Map([
+  ["NetXdQprcVkpaWU", "mainnet"],
+  ["NetXjD3HPJJjmcd", "carthagenet"],
+  ["NetXm8tYqnMWky1", "delphinet"]
+]);
 
 const utf8Decoder = new TextDecoder("utf-8");
 function hexToUTF8(str1: string) {
@@ -24,7 +29,7 @@ function hexToUTF8(str1: string) {
 export async function getTokenMetadata(
   tezos: TezosToolkit,
   contractAddress: string,
-  toolkitNetworkId: string,
+  toolkitNetworkId?: string,
   key?: string
 ): Promise<any> {
   const contract = await loadContract(tezos, contractAddress);
@@ -36,10 +41,7 @@ export async function getTokenMetadata(
       if (typeof rawStorageKeyHex !== "string") {
         return metadata;
       }
-      const rawStorageKey = hexToUTF8(rawStorageKeyHex).replace(
-        "tezos-storage:",
-        ""
-      );
+      let rawStorageKey = hexToUTF8(rawStorageKeyHex);
       if (URL_PATTERN.test(rawStorageKey)) {
         return fetch(rawStorageKey).then(response => {
           if (response.ok) {
@@ -52,6 +54,10 @@ export async function getTokenMetadata(
           );
         });
       }
+      if (!STORAGE_KEY_REGEX.test(rawStorageKey)) {
+        return null;
+      }
+      rawStorageKey = rawStorageKey.replace("tezos-storage:", "");
       const contractKeyResult = OTHER_CONTRACT_KEY_REGEX.exec(rawStorageKey);
       if (contractKeyResult) {
         const [
@@ -70,7 +76,9 @@ export async function getTokenMetadata(
         const networkTag = rawNetworkTag?.substr(1);
         const networkTagIsChainId =
           !!networkTag && RPC_ID_TAG_REGEX.test(networkTag);
-        const rpcChainId = await loadChainId(tezos.rpc.getRpcUrl());
+        const rpcChainId = await tezos.rpc.getChainId();
+        const expectedNetworkId =
+          toolkitNetworkId || KNOWN_CHAIN_IDS.get(rpcChainId);
         if (networkTag && networkTagIsChainId && rpcChainId !== networkTag) {
           throw new InvalidRpcIdError(
             `Chain ID ${networkTag} was specified, which is not chain ID of given Tezos toolkit`,
@@ -80,7 +88,7 @@ export async function getTokenMetadata(
         if (
           networkTag &&
           !networkTagIsChainId &&
-          toolkitNetworkId !== networkTag
+          expectedNetworkId !== networkTag
         ) {
           throw new InvalidNetworkNameError(
             `${networkTag} network was specified, which is not network of given Tezos toolkit`,
@@ -90,7 +98,7 @@ export async function getTokenMetadata(
         return getTokenMetadata(
           tezos,
           contractAddress,
-          toolkitNetworkId,
+          expectedNetworkId,
           storageKey
         );
       }
@@ -106,7 +114,7 @@ export async function getTokenMetadata(
   }
   if (storage.token_metadata instanceof BigMapAbstraction) {
     const metadata: BigMapAbstraction = storage.token_metadata;
-    return metadata.get("0");
+    return metadata.get(key || "0");
   }
   if (key) {
     return storage[key];

@@ -2,7 +2,7 @@ import { TezosToolkit } from "@taquito/taquito";
 import { ValidationResult, validateAddress } from "@taquito/utils";
 
 export function loadContract(tezos: TezosToolkit, address: string) {
-  return tezos.wallet.at(address);
+  return tezos.contract.at(address);
 }
 
 export function isAddressValid(address: string) {

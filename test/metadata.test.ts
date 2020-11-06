@@ -2,9 +2,14 @@ import BigNumber from "bignumber.js";
 import { TezosToolkit } from "@taquito/taquito";
 import { getTokenMetadata, MetadataParseErrorCode } from "../src";
 
+jest.setTimeout(20000);
+
 const mainnetToolkit = new TezosToolkit("https://mainnet-tezos.giganode.io");
 const carthagenetToolkit = new TezosToolkit(
   "https://testnet-tezos.giganode.io"
+);
+const delphinetToolkit = new TezosToolkit(
+  "https://delphinet-tezos.giganode.io"
 );
 
 const tzip16ExpectedMetadata = {
@@ -45,25 +50,29 @@ describe("getTokenMetadata", () => {
       expect(
         await getTokenMetadata(
           carthagenetToolkit,
-          "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9",
-          "carthagenet"
+          "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
         )
       ).toEqual(tzip16ExpectedMetadata);
     });
 
-    it("tries to fetch metadata from URL specified in the contract", async () => {
-      expect.assertions(1);
-      try {
-        await getTokenMetadata(
-          mainnetToolkit,
-          "KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM",
-          "mainnet"
-        );
-      } catch (error) {
-        expect(
-          error.message.includes("https://werenode.com/contracts/token.json")
-        ).toEqual(true);
-      }
+    it("returns null if storage key doesn't start with 'tezos-storage:'", async () => {
+      expect(
+        getTokenMetadata(
+          delphinetToolkit,
+          "KT1TftZK1NTjZ22Z8jRc2S2HTJ1hPEuJ8LfC"
+        )
+      ).resolves.toBeNull();
+    });
+
+    it("tries to fetch metadata from URL specified in the contract", done => {
+      getTokenMetadata(mainnetToolkit, "KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM")
+        .then(() => done.fail())
+        .catch(error => {
+          expect(
+            error.message.includes("https://werenode.com/contracts/token.json")
+          ).toEqual(true);
+          done();
+        });
     });
 
     describe("getting data by tezos-storage URI with contract pointing", () => {
@@ -71,8 +80,7 @@ describe("getTokenMetadata", () => {
         expect(
           await getTokenMetadata(
             carthagenetToolkit,
-            "KT19Rzko3FEAdh2DALvhsK8ExR8q7ApnHB8W",
-            "carthagenet"
+            "KT19Rzko3FEAdh2DALvhsK8ExR8q7ApnHB8W"
           )
         ).toEqual(tzip16ExpectedMetadata);
       });
@@ -81,8 +89,7 @@ describe("getTokenMetadata", () => {
         expect(
           await getTokenMetadata(
             carthagenetToolkit,
-            "KT1G4zHU4VZ2emJmn8PAXrwdpyDK1aSJCjyB",
-            "carthagenet"
+            "KT1G4zHU4VZ2emJmn8PAXrwdpyDK1aSJCjyB"
           )
         ).toEqual(tzip16ExpectedMetadata);
       });
@@ -90,8 +97,7 @@ describe("getTokenMetadata", () => {
       it("throws error if specified network is another than the network where TezosToolkit instance works", async () => {
         const metadataPromise = getTokenMetadata(
           carthagenetToolkit,
-          "KT1LKfJaj6X9sMm92Brnh7ytEs49uENPmeQk",
-          "carthagenet"
+          "KT1LKfJaj6X9sMm92Brnh7ytEs49uENPmeQk"
         );
         expect(metadataPromise).rejects.toHaveProperty(
           "code",
@@ -103,11 +109,10 @@ describe("getTokenMetadata", () => {
   });
 
   describe("behavior for other storage types", () => {
-    it("parses metadata from '0' key of bigmap which is stored under 'token_metadata' key", async () => {
+    it("parses metadata from '0' (by default) key of bigmap which is stored under 'token_metadata' key", async () => {
       const { extras, ...restMetadata } = await getTokenMetadata(
         carthagenetToolkit,
-        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
-        "carthagnet"
+        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY"
       );
       expect(restMetadata).toEqual({
         token_id: new BigNumber("0"),
@@ -126,11 +131,32 @@ describe("getTokenMetadata", () => {
       expect(expectedExtrasEntries.size).toEqual(0);
     });
 
+    it("parsed metadata from specified key of bigmap which is stored under 'token_metadata' key", async () => {
+      const tokenMetadata = await getTokenMetadata(
+        carthagenetToolkit,
+        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
+        "carthagenet",
+        "1"
+      );
+      expect(tokenMetadata).toEqual(undefined);
+      const { extras, ...restMetadata } = await getTokenMetadata(
+        carthagenetToolkit,
+        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
+        "carthagenet",
+        "0"
+      );
+      expect(restMetadata).toEqual({
+        token_id: new BigNumber("0"),
+        symbol: "TestTokenSymbol",
+        name: "TestTokenName",
+        decimals: new BigNumber("8")
+      });
+    });
+
     it("returns storage contents if storage doesn't match all schemas above", async () => {
       const { ledger, ...restProps } = await getTokenMetadata(
         mainnetToolkit,
-        "KT1Avd4SfQT7CezSiGYXFgHNKqSyWstYRz53",
-        "mainnet"
+        "KT1Avd4SfQT7CezSiGYXFgHNKqSyWstYRz53"
       );
       expect(restProps).toEqual({
         administrator: "tz1Ts3m2dXTXB66XN7cg5ALiAvzZY6AxrFd9",
