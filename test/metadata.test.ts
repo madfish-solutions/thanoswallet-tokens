@@ -76,6 +76,18 @@ describe("getTokenMetadata", () => {
     });
 
     describe("getting data by tezos-storage URI with contract pointing", () => {
+      it("throws InvalidContractAddressError if a specified contract address is invalid", async () => {
+        const metadataPromise = getTokenMetadata(
+          carthagenetToolkit,
+          "KT1XaMSsiQJHYwL2bHqRTXnvvw41nJQxwyVh"
+        );
+        expect(metadataPromise).rejects.toHaveProperty(
+          "code",
+          MetadataParseErrorCode.INVALID_CONTRACT_ADDRESS
+        );
+        expect(metadataPromise).rejects.toBeInstanceOf(Error);
+      });
+
       it("gets data from another contract: network isn't specified", async () => {
         expect(
           await getTokenMetadata(
@@ -167,5 +179,17 @@ describe("getTokenMetadata", () => {
         totalSupply: new BigNumber(0)
       });
     });
+  });
+
+  it("throws ContractNotFoundError if a contract cannot be found", async () => {
+    const metadataPromise = getTokenMetadata(
+      mainnetToolkit,
+      "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
+    );
+    expect(metadataPromise).rejects.toHaveProperty(
+      "code",
+      MetadataParseErrorCode.CONTRACT_NOT_FOUND
+    );
+    expect(metadataPromise).rejects.toBeInstanceOf(Error);
   });
 });
