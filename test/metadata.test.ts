@@ -75,6 +75,18 @@ describe("getTokenMetadata", () => {
         });
     });
 
+    it("throws ContractNotFoundError if a contract cannot be found", async () => {
+      const metadataPromise = getTokenMetadata(
+        mainnetToolkit,
+        "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
+      );
+      expect(metadataPromise).rejects.toHaveProperty(
+        "code",
+        MetadataParseErrorCode.CONTRACT_NOT_FOUND
+      );
+      expect(metadataPromise).rejects.toBeInstanceOf(Error);
+    });
+
     describe("getting data by tezos-storage URI with contract pointing", () => {
       it("gets data from another contract: network isn't specified", async () => {
         expect(

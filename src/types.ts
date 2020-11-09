@@ -1,5 +1,6 @@
 export enum MetadataParseErrorCode {
   INVALID_CONTRACT_ADDRESS,
+  CONTRACT_NOT_FOUND,
   INVALID_NETWORK_NAME,
   INVALID_NETWORK_RPC_ID,
   FETCH_URL_ERROR
@@ -24,6 +25,19 @@ export class InvalidContractAddressError extends MetadataParseError {
     public payload: InvalidContractAddressPayload
   ) {
     super(message, MetadataParseErrorCode.INVALID_CONTRACT_ADDRESS);
+  }
+}
+
+export type ContractNotFoundPayload = {
+  contractAddress: string;
+};
+
+export class ContractNotFoundError extends MetadataParseError {
+  constructor(
+    message: string | undefined,
+    public payload: ContractNotFoundPayload
+  ) {
+    super(message, MetadataParseErrorCode.CONTRACT_NOT_FOUND);
   }
 }
 

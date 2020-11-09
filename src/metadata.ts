@@ -1,6 +1,7 @@
 import { BigMapAbstraction, TezosToolkit } from "@taquito/taquito";
 import { loadContract, validateContractAddress } from "./contracts";
 import {
+  ContractNotFoundError,
   FetchURLError,
   InvalidContractAddressError,
   InvalidNetworkNameError,
@@ -32,7 +33,15 @@ export async function getTokenMetadata(
   toolkitNetworkId?: string,
   key?: string
 ): Promise<any> {
-  const contract = await loadContract(tezos, contractAddress);
+  let contract;
+  try {
+    contract = await loadContract(tezos, contractAddress);
+  } catch {
+    throw new ContractNotFoundError(
+      `Contract ${contractAddress} was not found`,
+      { contractAddress }
+    );
+  }
   const storage = await contract.storage<any>();
   if (storage.metadata instanceof BigMapAbstraction) {
     const metadata = storage.metadata;
