@@ -57,7 +57,6 @@ export async function getTokenMetadata(
             if (response.ok) {
               return response.json();
             }
-            console.error(response.status);
             throw new FetchURLError(
               `Error received while fetching ${rawStorageKey}`,
               { response }
