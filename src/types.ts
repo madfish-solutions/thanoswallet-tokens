@@ -68,7 +68,8 @@ export class InvalidRpcIdError extends MetadataParseError {
 }
 
 export type FetchURLErrorPayload = {
-  response: Response;
+  response?: Response;
+  internalError?: Error;
 };
 
 export class FetchURLError extends MetadataParseError {
