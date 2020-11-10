@@ -64,6 +64,9 @@ export async function getTokenMetadata(
             );
           })
           .catch(e => {
+            if (e instanceof FetchURLError) {
+              throw e;
+            }
             throw new FetchURLError(
               `Error received while fetching ${rawStorageKey}`,
               { internalError: e }
