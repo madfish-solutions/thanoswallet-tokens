@@ -71,6 +71,10 @@ describe("getTokenMetadata", () => {
           expect(
             error.message.includes("https://werenode.com/contracts/token.json")
           ).toEqual(true);
+          expect(error).toHaveProperty(
+            "code",
+            MetadataParseErrorCode.FETCH_URL_ERROR
+          );
           done();
         });
     });

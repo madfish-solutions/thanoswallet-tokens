@@ -52,16 +52,25 @@ export async function getTokenMetadata(
       }
       let rawStorageKey = hexToUTF8(rawStorageKeyHex);
       if (URL_PATTERN.test(rawStorageKey)) {
-        return fetch(rawStorageKey).then(response => {
-          if (response.ok) {
-            return response.json();
-          }
-          console.error(response.status);
-          throw new FetchURLError(
-            `Error received while fetching ${rawStorageKey}`,
-            { response }
-          );
-        });
+        return fetch(rawStorageKey)
+          .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            throw new FetchURLError(
+              `Error received while fetching ${rawStorageKey}`,
+              { response }
+            );
+          })
+          .catch(e => {
+            if (e instanceof FetchURLError) {
+              throw e;
+            }
+            throw new FetchURLError(
+              `Error received while fetching ${rawStorageKey}`,
+              { internalError: e }
+            );
+          });
       }
       if (!STORAGE_KEY_REGEX.test(rawStorageKey)) {
         return null;
