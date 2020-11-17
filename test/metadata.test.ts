@@ -1,6 +1,5 @@
 import BigNumber from "bignumber.js";
 import { TezosToolkit } from "@taquito/taquito";
-import { TezBridgeWallet } from "@taquito/tezbridge-wallet";
 import { getTokenMetadata, MetadataParseErrorCode } from "../src";
 
 jest.setTimeout(20000);
@@ -169,7 +168,6 @@ describe("getTokenMetadata", () => {
     });
 
     it("returns result from 'token_metadata' entrypoint if it's present and there is no token_metadata bigmap", async () => {
-      mainnetToolkit.setProvider({ wallet: new TezBridgeWallet() });
       expect(
         await getTokenMetadata(
           "KT1CZGNkppGBiEQRXbs1JyRSz7jEDNNBQFo9",
