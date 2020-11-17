@@ -1,5 +1,6 @@
 import BigNumber from "bignumber.js";
 import { TezosToolkit } from "@taquito/taquito";
+import { TezBridgeWallet } from "@taquito/tezbridge-wallet";
 import { getTokenMetadata, MetadataParseErrorCode } from "../src";
 
 jest.setTimeout(20000);
@@ -48,24 +49,24 @@ describe("getTokenMetadata", () => {
   describe("TZIP-16 standart compliance", () => {
     it("gets data stored immediately in the contract", async () => {
       expect(
-        await getTokenMetadata(
-          carthagenetToolkit,
-          "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
-        )
+        await getTokenMetadata("KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9", {
+          tezos: carthagenetToolkit
+        })
       ).toEqual(tzip16ExpectedMetadata);
     });
 
     it("returns null if storage key doesn't start with 'tezos-storage:'", async () => {
       expect(
-        getTokenMetadata(
-          delphinetToolkit,
-          "KT1TftZK1NTjZ22Z8jRc2S2HTJ1hPEuJ8LfC"
-        )
+        getTokenMetadata("KT1TftZK1NTjZ22Z8jRc2S2HTJ1hPEuJ8LfC", {
+          tezos: delphinetToolkit
+        })
       ).resolves.toBeNull();
     });
 
     it("tries to fetch metadata from URL specified in the contract", done => {
-      getTokenMetadata(mainnetToolkit, "KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM")
+      getTokenMetadata("KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM", {
+        tezos: mainnetToolkit
+      })
         .then(() => done.fail())
         .catch(error => {
           expect(
@@ -82,8 +83,8 @@ describe("getTokenMetadata", () => {
     describe("getting data by tezos-storage URI with contract pointing", () => {
       it("throws InvalidContractAddressError if a specified contract address is invalid", async () => {
         const metadataPromise = getTokenMetadata(
-          carthagenetToolkit,
-          "KT1XaMSsiQJHYwL2bHqRTXnvvw41nJQxwyVh"
+          "KT1XaMSsiQJHYwL2bHqRTXnvvw41nJQxwyVh",
+          { tezos: carthagenetToolkit }
         );
         expect(metadataPromise).rejects.toHaveProperty(
           "code",
@@ -94,26 +95,24 @@ describe("getTokenMetadata", () => {
 
       it("gets data from another contract: network isn't specified", async () => {
         expect(
-          await getTokenMetadata(
-            carthagenetToolkit,
-            "KT19Rzko3FEAdh2DALvhsK8ExR8q7ApnHB8W"
-          )
+          await getTokenMetadata("KT19Rzko3FEAdh2DALvhsK8ExR8q7ApnHB8W", {
+            tezos: carthagenetToolkit
+          })
         ).toEqual(tzip16ExpectedMetadata);
       });
 
       it("gets data from another contract: network is the same as TezosToolkit instance works in, specified with chain id", async () => {
         expect(
-          await getTokenMetadata(
-            carthagenetToolkit,
-            "KT1G4zHU4VZ2emJmn8PAXrwdpyDK1aSJCjyB"
-          )
+          await getTokenMetadata("KT1G4zHU4VZ2emJmn8PAXrwdpyDK1aSJCjyB", {
+            tezos: carthagenetToolkit
+          })
         ).toEqual(tzip16ExpectedMetadata);
       });
 
       it("throws error if specified network is another than the network where TezosToolkit instance works", async () => {
         const metadataPromise = getTokenMetadata(
-          carthagenetToolkit,
-          "KT1LKfJaj6X9sMm92Brnh7ytEs49uENPmeQk"
+          "KT1LKfJaj6X9sMm92Brnh7ytEs49uENPmeQk",
+          { tezos: carthagenetToolkit }
         );
         expect(metadataPromise).rejects.toHaveProperty(
           "code",
@@ -124,11 +123,13 @@ describe("getTokenMetadata", () => {
     });
   });
 
-  describe("behavior for other storage types", () => {
+  describe("TZIP-12 standart compliance", () => {
     it("parses metadata from '0' (by default) key of bigmap which is stored under 'token_metadata' key", async () => {
       const { extras, ...restMetadata } = await getTokenMetadata(
-        carthagenetToolkit,
-        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY"
+        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
+        {
+          tezos: carthagenetToolkit
+        }
       );
       expect(restMetadata).toEqual({
         token_id: new BigNumber("0"),
@@ -149,16 +150,14 @@ describe("getTokenMetadata", () => {
 
     it("parsed metadata from specified key of bigmap which is stored under 'token_metadata' key", async () => {
       const tokenMetadata = await getTokenMetadata(
-        carthagenetToolkit,
         "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
-        "carthagenet",
+        { tezos: carthagenetToolkit },
         "1"
       );
       expect(tokenMetadata).toEqual(undefined);
       const { extras, ...restMetadata } = await getTokenMetadata(
-        carthagenetToolkit,
         "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
-        "carthagenet",
+        { tezos: carthagenetToolkit },
         "0"
       );
       expect(restMetadata).toEqual({
@@ -169,10 +168,25 @@ describe("getTokenMetadata", () => {
       });
     });
 
+    it("returns result from 'token_metadata' entrypoint if it's present and there is no token_metadata bigmap", async () => {
+      mainnetToolkit.setProvider({ wallet: new TezBridgeWallet() });
+      expect(
+        await getTokenMetadata(
+          "KT1CZGNkppGBiEQRXbs1JyRSz7jEDNNBQFo9",
+          { tezos: mainnetToolkit },
+          "1"
+        )
+      ).toEqual({});
+    });
+  });
+
+  describe("behavior for other storage types", () => {
     it("returns storage contents if storage doesn't match all schemas above", async () => {
       const { ledger, ...restProps } = await getTokenMetadata(
-        mainnetToolkit,
-        "KT1Avd4SfQT7CezSiGYXFgHNKqSyWstYRz53"
+        "KT1Avd4SfQT7CezSiGYXFgHNKqSyWstYRz53",
+        {
+          tezos: mainnetToolkit
+        }
       );
       expect(restProps).toEqual({
         administrator: "tz1Ts3m2dXTXB66XN7cg5ALiAvzZY6AxrFd9",
@@ -180,15 +194,15 @@ describe("getTokenMetadata", () => {
         name: "OroPocket Silver",
         paused: false,
         symbol: "XTZSilver",
-        totalSupply: new BigNumber(0)
+        totalSupply: new BigNumber("12408001936")
       });
     });
   });
 
   it("throws ContractNotFoundError if a contract cannot be found", async () => {
     const metadataPromise = getTokenMetadata(
-      mainnetToolkit,
-      "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
+      "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9",
+      { tezos: mainnetToolkit }
     );
     expect(metadataPromise).rejects.toHaveProperty(
       "code",

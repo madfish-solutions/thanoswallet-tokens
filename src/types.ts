@@ -3,7 +3,8 @@ export enum MetadataParseErrorCode {
   CONTRACT_NOT_FOUND,
   INVALID_NETWORK_NAME,
   INVALID_NETWORK_RPC_ID,
-  FETCH_URL_ERROR
+  FETCH_URL_ERROR,
+  LAMBDA_CONTRACT_REQUIRED
 }
 
 export class MetadataParseError extends Error {
@@ -78,5 +79,11 @@ export class FetchURLError extends MetadataParseError {
     public payload: FetchURLErrorPayload
   ) {
     super(message, MetadataParseErrorCode.FETCH_URL_ERROR);
+  }
+}
+
+export class LambdaContractRequiredError extends MetadataParseError {
+  constructor(message: string | undefined) {
+    super(message, MetadataParseErrorCode.LAMBDA_CONTRACT_REQUIRED);
   }
 }
