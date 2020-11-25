@@ -1,8 +1,9 @@
 import BigNumber from "bignumber.js";
-import { TezosToolkit } from "@taquito/taquito";
+import { MichelsonMap, TezosToolkit } from "@taquito/taquito";
+import { InMemorySigner } from "@taquito/signer";
 import { getTokenMetadata, MetadataParseErrorCode } from "../src";
 
-jest.setTimeout(20000);
+jest.setTimeout(30000);
 
 const mainnetToolkit = new TezosToolkit("https://mainnet-tezos.giganode.io");
 const carthagenetToolkit = new TezosToolkit(
@@ -42,6 +43,16 @@ const tzip16ExpectedMetadata = {
       ]
     }
   ]
+};
+
+const expectMichelsonMapValues = (value: any, mapValues: Map<string, any>) => {
+  const mapValuesCopy = new Map(mapValues.entries());
+  expect(value).toBeInstanceOf(MichelsonMap);
+  value.forEach((value: string, key: string) => {
+    expect(mapValuesCopy.get(key)).toEqual(value);
+    mapValuesCopy.delete(key);
+  });
+  expect(mapValuesCopy.size).toEqual(0);
 };
 
 describe("getTokenMetadata", () => {
@@ -123,11 +134,24 @@ describe("getTokenMetadata", () => {
   });
 
   describe("TZIP-12 standart compliance", () => {
+    beforeAll(async () => {
+      const privateCarthageKey = await fetch(
+        "https://api.tez.ie/keys/carthagenet",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer taquito-example" }
+        }
+      ).then(response => response.text());
+      carthagenetToolkit.setSignerProvider(
+        await InMemorySigner.fromSecretKey(privateCarthageKey)
+      );
+    });
+
     it("parses metadata from '0' (by default) key of bigmap which is stored under 'token_metadata' key", async () => {
       const { extras, ...restMetadata } = await getTokenMetadata(
-        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
+        "KT1UACCYG77J1WEkfaBrRPrMRmeMv771TNPy",
         {
-          tezos: carthagenetToolkit
+          tezos: delphinetToolkit
         }
       );
       expect(restMetadata).toEqual({
@@ -140,23 +164,19 @@ describe("getTokenMetadata", () => {
         ["attr1", "val1"],
         ["attr2", "val2"]
       ]);
-      extras.forEach((value: string, key: string) => {
-        expect(expectedExtrasEntries.get(key)).toEqual(value);
-        expectedExtrasEntries.delete(key);
-      });
-      expect(expectedExtrasEntries.size).toEqual(0);
+      expectMichelsonMapValues(extras, expectedExtrasEntries);
     });
 
     it("parsed metadata from specified key of bigmap which is stored under 'token_metadata' key", async () => {
       const tokenMetadata = await getTokenMetadata(
-        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
-        { tezos: carthagenetToolkit },
+        "KT1UACCYG77J1WEkfaBrRPrMRmeMv771TNPy",
+        { tezos: delphinetToolkit },
         "1"
       );
       expect(tokenMetadata).toEqual(undefined);
       const { extras, ...restMetadata } = await getTokenMetadata(
-        "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY",
-        { tezos: carthagenetToolkit },
+        "KT1UACCYG77J1WEkfaBrRPrMRmeMv771TNPy",
+        { tezos: delphinetToolkit },
         "0"
       );
       expect(restMetadata).toEqual({
@@ -165,22 +185,43 @@ describe("getTokenMetadata", () => {
         name: "TestTokenName",
         decimals: new BigNumber("8")
       });
-    });
+    }, 60000);
 
     it("returns result from 'token_metadata' entrypoint if it's present and there is no token_metadata bigmap", async () => {
-      expect(
-        await getTokenMetadata(
-          "KT1CZGNkppGBiEQRXbs1JyRSz7jEDNNBQFo9",
-          { tezos: mainnetToolkit },
-          "1"
-        )
-      ).toEqual({});
-    });
+      const { extras, ...restTokenMetadata } = await getTokenMetadata(
+        "KT1QJb2JRgT9jQ8D96EU5aHtPHwQzy42GtPs",
+        { tezos: carthagenetToolkit },
+        "1"
+      );
+      expect(restTokenMetadata).toEqual({
+        symbol: "TK1",
+        name: "",
+        decimals: 0
+      });
+      const expectedExtrasEntries = new Map<string, string>([]);
+      expectMichelsonMapValues(extras, expectedExtrasEntries);
+    }, 180000);
+
+    it("fetches metadata from contract with address returned by 'token_metadata_registry' address if it exists", done => {
+      (async () => {
+        const { balances, totalSupply, ...restProps } = await getTokenMetadata(
+          "KT1C1eUuS7Y5FsaXryJse7vVM7CfFz6LAJaX",
+          {
+            tezos: carthagenetToolkit
+          }
+        );
+        expect(restProps).toEqual({
+          administrator: "KT1C1eUuS7Y5FsaXryJse7vVM7CfFz6LAJaX",
+          paused: false
+        });
+        done();
+      })();
+    }, 180000);
   });
 
   describe("behavior for other storage types", () => {
     it("returns storage contents if storage doesn't match all schemas above", async () => {
-      const { ledger, ...restProps } = await getTokenMetadata(
+      const { ledger, totalSupply, ...restProps } = await getTokenMetadata(
         "KT1Avd4SfQT7CezSiGYXFgHNKqSyWstYRz53",
         {
           tezos: mainnetToolkit
@@ -191,8 +232,7 @@ describe("getTokenMetadata", () => {
         decimals: new BigNumber("6"),
         name: "OroPocket Silver",
         paused: false,
-        symbol: "XTZSilver",
-        totalSupply: new BigNumber("12408001936")
+        symbol: "XTZSilver"
       });
     });
   });

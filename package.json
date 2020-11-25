@@ -24,7 +24,7 @@
   "scripts": {
     "start": "tsdx watch",
     "build": "tsdx build",
-    "test": "tsdx test",
+    "test": "tsdx test --verbose --runInBand",
     "lint": "tsdx lint",
     "prepare": "tsdx build",
     "size": "size-limit",
@@ -34,15 +34,16 @@
     "@taquito/taquito": "^7.1.0"
   },
   "devDependencies": {
+    "@taquito/signer": "^7.0.0-beta.0",
     "@taquito/taquito": "7.1.0-preview-lambdaview.0",
-    "@taquito/tezbridge-wallet": "^7.0.0-beta.0",
     "bignumber.js": "^9.0.1",
     "husky": "^4.3.0",
     "jest-fetch-mock": "^3.0.3",
     "size-limit": "^4.7.0",
     "tsdx": "^0.14.1",
     "tslib": "^2.0.3",
-    "typescript": "^4.0.5"
+    "typescript": "^4.0.5",
+    "util": "^0.12.3"
   },
   "husky": {
     "hooks": {

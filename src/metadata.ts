@@ -1,4 +1,4 @@
-import { BigMapAbstraction, TezosToolkit } from "@taquito/taquito";
+import { BigMapAbstraction } from "@taquito/taquito";
 import { loadContract, validateContractAddress } from "./contracts";
 import {
   ContractNotFoundError,
@@ -6,7 +6,8 @@ import {
   InvalidContractAddressError,
   InvalidNetworkNameError,
   InvalidRpcIdError,
-  LambdaContractRequiredError
+  NotEnoughCredentialsError,
+  NetworkConfig
 } from "./types";
 
 const STORAGE_KEY_REGEX = /^tezos-storage:./;
@@ -18,10 +19,15 @@ const KNOWN_CHAIN_IDS = new Map([
   ["NetXjD3HPJJjmcd", "carthagenet"],
   ["NetXm8tYqnMWky1", "delphinet"]
 ]);
-const LAMBDA_CONTRACTS = new Map([
-  ["NetXdQprcVkpaWU", "KT1CPuTzwC7h7uLXd5WQmpMFso1HxrLBUtpE"],
-  ["NetXjD3HPJJjmcd", "KT1PCtQTdgD44WsYgTzAUUztMcrDmPiSuSV1"],
-  ["NetXm8tYqnMWky1", "KT1EC1oaF3LwjiPto3fpUZiS3sWYuQHGxqXM"]
+const FA2_TOKEN_METADATA_CALLBACKS = new Map([
+  ["NetXdQprcVkpaWU", "KT1FCdgksuWJPLKfkgLU4BGxEjDyPBMgs4Rw"],
+  ["NetXjD3HPJJjmcd", "KT1Fb2LmL7fSe94TpyzNnCB2a1bLSNrrzhcF"],
+  ["NetXm8tYqnMWky1", "KT1MhQ2e1omND5YwNKtRbs5rwjRN7u4seLY7"]
+]);
+const FA2_TOKEN_METADATA_REGISTRY_CALLBACKS = new Map([
+  ["NetXdQprcVkpaWU", "KT1JkE4T6umrTh15kKSyJ8cLjNu2cdd6QtNj"],
+  ["NetXjD3HPJJjmcd", "KT1VD8TGNzQaozvp4tT7htfLTpTPpzYAEwPY"],
+  ["NetXm8tYqnMWky1", "KT1FeeL8fSjjsX5vs5AHhzq5cJRB83WWewMy"]
 ]);
 
 const utf8Decoder = new TextDecoder("utf-8");
@@ -33,18 +39,17 @@ function hexToUTF8(str1: string) {
   return utf8Decoder.decode(Uint8Array.from(bytes));
 }
 
-export interface NetworkConfig {
-  tezos: TezosToolkit;
-  toolkitNetworkId?: string;
-  lambdaContract?: string;
-}
-
 export async function getTokenMetadata(
   contractAddress: string,
   networkConfig: NetworkConfig,
   key?: string
 ): Promise<any> {
-  const { tezos, toolkitNetworkId, lambdaContract } = networkConfig;
+  const {
+    tezos,
+    toolkitNetworkId,
+    tokenMetadataCallbackContract: customTokenMetadataCallbackContract,
+    tokenMetadataRegistryCallbackContract: customTokenMetadataRegistryCallbackContract
+  } = networkConfig;
   let contract;
   try {
     contract = await loadContract(tezos, contractAddress);
@@ -141,34 +146,74 @@ export async function getTokenMetadata(
       hexToUTF8((await metadata.get(decodeURIComponent(key))) as string)
     );
   }
+  const chainId = await tezos.rpc.getChainId();
   if (storage.token_metadata instanceof BigMapAbstraction) {
     const metadata: BigMapAbstraction = storage.token_metadata;
     return metadata.get(key || "0");
   }
-  if (contract.views.token_metadata_registry) {
-    const lambdaContractWithFallback =
-      lambdaContract || LAMBDA_CONTRACTS.get(await tezos.rpc.getChainId());
-    if (!lambdaContractWithFallback) {
-      throw new LambdaContractRequiredError(
-        "Failed to find lambda contract address, which is required to use 'token_metadata' entrypoint. Please specify it."
+  if (contract.methods.token_metadata) {
+    const tokenMetadataCallbackContract =
+      FA2_TOKEN_METADATA_CALLBACKS.get(chainId) ||
+      customTokenMetadataCallbackContract;
+    if (!tokenMetadataCallbackContract) {
+      throw new NotEnoughCredentialsError(
+        `Failed to find callback contract for token_metadata method, you need to specify it.`,
+        { fieldName: "tokenMetadataCallbackContract" }
       );
     }
-    console.log(
-      await contract.views
-        .token_metadata_registry([key])
-        .read(lambdaContractWithFallback)
+    const passTokenMetadataOperation = await contract.methods
+      .token_metadata(tokenMetadataCallbackContract, [key])
+      .send();
+    await passTokenMetadataOperation.confirmation(1);
+    const storageContract = await loadContract(
+      tezos,
+      tokenMetadataCallbackContract
+    );
+    const metadataStorage = await storageContract.storage<
+      Record<string, any>[]
+    >();
+    const metadataEntry = metadataStorage.find(
+      entry => entry["0"].toFixed() === key
+    );
+    return (
+      metadataEntry && {
+        symbol: metadataEntry["1"],
+        name: metadataEntry["2"],
+        decimals: Number(metadataEntry["3"]),
+        extras: metadataEntry["4"]
+      }
     );
   }
-  if (contract.methods.token_metadata) {
-    const lambdaContractWithFallback =
-      lambdaContract || LAMBDA_CONTRACTS.get(await tezos.rpc.getChainId());
-    if (!lambdaContractWithFallback) {
-      throw new LambdaContractRequiredError(
-        "Failed to find lambda contract address, which is required to use 'token_metadata' entrypoint. Please specify it."
+  if (contract.methods.token_metadata_registry) {
+    const tokenMetadataRegistryCallbackContract =
+      FA2_TOKEN_METADATA_REGISTRY_CALLBACKS.get(chainId) ||
+      customTokenMetadataRegistryCallbackContract;
+    if (!tokenMetadataRegistryCallbackContract) {
+      throw new NotEnoughCredentialsError(
+        `Failed to find callback contract for token_metadata_registry method, you need to specify it.`,
+        { fieldName: "tokenMetadataRegistryCallbackContract" }
       );
     }
-    console.error(lambdaContractWithFallback);
-    return contract.methods.token_metadata([key], lambdaContract).send();
+    const passTokenMetadataRegistryOperation = await contract.methods
+      .token_metadata_registry(tokenMetadataRegistryCallbackContract)
+      .send();
+    await passTokenMetadataRegistryOperation.confirmation(1);
+    const registryCallbackContract = await loadContract(
+      tezos,
+      tokenMetadataRegistryCallbackContract
+    );
+    const registryCallbackStorage = await registryCallbackContract.storage<
+      any
+    >();
+    let metadataStorageAddress = contractAddress;
+    registryCallbackStorage.forEach((value: string, key: string) => {
+      if (value === contractAddress) {
+        metadataStorageAddress = key;
+      }
+    });
+    if (metadataStorageAddress !== contractAddress) {
+      return getTokenMetadata(metadataStorageAddress, networkConfig);
+    }
   }
   if (key) {
     return storage[key];

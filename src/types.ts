@@ -1,10 +1,19 @@
+import { TezosToolkit } from "@taquito/taquito";
+
+export interface NetworkConfig {
+  tezos: TezosToolkit;
+  toolkitNetworkId?: string;
+  tokenMetadataCallbackContract?: string;
+  tokenMetadataRegistryCallbackContract?: string;
+}
+
 export enum MetadataParseErrorCode {
   INVALID_CONTRACT_ADDRESS,
   CONTRACT_NOT_FOUND,
   INVALID_NETWORK_NAME,
   INVALID_NETWORK_RPC_ID,
   FETCH_URL_ERROR,
-  LAMBDA_CONTRACT_REQUIRED
+  NOT_ENOUGH_CREDENTIALS
 }
 
 export class MetadataParseError extends Error {
@@ -82,8 +91,15 @@ export class FetchURLError extends MetadataParseError {
   }
 }
 
-export class LambdaContractRequiredError extends MetadataParseError {
-  constructor(message: string | undefined) {
-    super(message, MetadataParseErrorCode.LAMBDA_CONTRACT_REQUIRED);
+export type NotEnoughCredentialsErrorPayload = {
+  fieldName: Exclude<keyof NetworkConfig, "tezos" | "toolkitNetworkId">;
+};
+
+export class NotEnoughCredentialsError extends MetadataParseError {
+  constructor(
+    message: string | undefined,
+    public payload: NotEnoughCredentialsErrorPayload
+  ) {
+    super(message, MetadataParseErrorCode.NOT_ENOUGH_CREDENTIALS);
   }
 }
