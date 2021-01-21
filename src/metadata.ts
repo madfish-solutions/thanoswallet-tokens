@@ -1,3 +1,4 @@
+// import IPFS from "ipfs-core";
 import { BigMapAbstraction, TezosToolkit } from "@taquito/taquito";
 import { loadContract, validateContractAddress } from "./contracts";
 import {
@@ -12,6 +13,7 @@ const STORAGE_KEY_REGEX = /^tezos-storage:./;
 const OTHER_CONTRACT_KEY_REGEX = /^\/\/(KT[A-z0-9]+)(\.[A-z0-9]+)?\/([^/]+)/;
 const RPC_ID_TAG_REGEX = /^Net[A-z0-9]{12}$/;
 const URL_PATTERN = /^((?:http(s)?:\/\/)?[\w.-]+(?:\.[\w.-]+)+[\w\-._~:/?#[\]@!$&'()*+,;=.]+)|(http(s)?:\/\/localhost:[0-9]+)$/;
+const IPFS_URI_PATTERN = /^ipfs:\/\/([0-9A-z]+)$/;
 const KNOWN_CHAIN_IDS = new Map([
   ["NetXdQprcVkpaWU", "mainnet"],
   ["NetXjD3HPJJjmcd", "carthagenet"],
@@ -51,8 +53,18 @@ export async function getTokenMetadata(
         return metadata;
       }
       let rawStorageKey = hexToUTF8(rawStorageKeyHex);
+      console.warn("x1", rawStorageKey, IPFS_URI_PATTERN.test(rawStorageKey));
+      let urlToFetch: string | undefined;
       if (URL_PATTERN.test(rawStorageKey)) {
-        return fetch(rawStorageKey)
+        urlToFetch = rawStorageKey;
+      }
+      if (IPFS_URI_PATTERN.test(rawStorageKey)) {
+        // @ts-ignore
+        const [_, ipfsId] = IPFS_URI_PATTERN.exec(rawStorageKey)!;
+        urlToFetch = `https://cloudflare-ipfs.com/ipfs/${ipfsId}`;
+      }
+      if (urlToFetch) {
+        return fetch(urlToFetch)
           .then(response => {
             if (response.ok) {
               return response.json();

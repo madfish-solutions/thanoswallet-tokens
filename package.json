@@ -48,5 +48,7 @@
       "pre-commit": "tsdx lint"
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "ipfs-core": "^0.4.1"
+  }
 }

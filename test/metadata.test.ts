@@ -5,9 +5,6 @@ import { getTokenMetadata, MetadataParseErrorCode } from "../src";
 jest.setTimeout(20000);
 
 const mainnetToolkit = new TezosToolkit("https://mainnet-tezos.giganode.io");
-const carthagenetToolkit = new TezosToolkit(
-  "https://testnet-tezos.giganode.io"
-);
 const delphinetToolkit = new TezosToolkit(
   "https://delphinet-tezos.giganode.io"
 );
@@ -49,8 +46,8 @@ describe("getTokenMetadata", () => {
     it("gets data stored immediately in the contract", async () => {
       expect(
         await getTokenMetadata(
-          carthagenetToolkit,
-          "KT1XRT495WncnqNmqKn4tkuRiDJzEiR4N2C9"
+          delphinetToolkit,
+          "KT1Fp7dn9QoDcH2kogLTeBY1Gwy3yim4yWqC"
         )
       ).toEqual(tzip16ExpectedMetadata);
     });
@@ -64,26 +61,54 @@ describe("getTokenMetadata", () => {
       ).resolves.toBeNull();
     });
 
-    it("tries to fetch metadata from URL specified in the contract", done => {
-      getTokenMetadata(mainnetToolkit, "KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM")
-        .then(() => done.fail())
-        .catch(error => {
-          expect(
-            error.message.includes("https://werenode.com/contracts/token.json")
-          ).toEqual(true);
-          expect(error).toHaveProperty(
-            "code",
-            MetadataParseErrorCode.FETCH_URL_ERROR
-          );
-          done();
-        });
+    describe("getting data by external URIs", () => {
+      it("tries to fetch metadata from URL specified in the contract", done => {
+        getTokenMetadata(mainnetToolkit, "KT1CSYNJ6dFcnsV4QJ6HnBFtdif8LJGPQiDM")
+          .then(() => done.fail())
+          .catch(error => {
+            expect(
+              error.message.includes(
+                "https://werenode.com/contracts/token.json"
+              )
+            ).toEqual(true);
+            expect(error).toHaveProperty(
+              "code",
+              MetadataParseErrorCode.FETCH_URL_ERROR
+            );
+            done();
+          });
+      });
+
+      it("fetches metadata from ipfs URI", done => {
+        getTokenMetadata(
+          mainnetToolkit,
+          "KT197cMAmydiH3QH7Xjqqrf8PgX7Xq5FyDat",
+          "mainnet",
+          "3"
+        )
+          .then(data => {
+            expect(data).toEqual({
+              decimals: 0,
+              icon:
+                "https://ipfs.io/ipfs/QmNrhZHUaEqxhyLfqoq1mtHSipkWHeT31LNHb1QEbDHgnc",
+              metadata:
+                "https://ipfs.io/ipfs/QmQciQTzKD7XZddKkMPNNu5j5yvAK3pe7BiZnBDJMAUK9C",
+              name: "OBJKT",
+              symbol: "OBJKT"
+            });
+            done();
+          })
+          .catch(e => {
+            done.fail(e.message);
+          });
+      });
     });
 
     describe("getting data by tezos-storage URI with contract pointing", () => {
       it("throws InvalidContractAddressError if a specified contract address is invalid", async () => {
         const metadataPromise = getTokenMetadata(
-          carthagenetToolkit,
-          "KT1XaMSsiQJHYwL2bHqRTXnvvw41nJQxwyVh"
+          delphinetToolkit,
+          "KT1MRis6d8PsDTubqSdWoYPzChDbuKwCTC7C"
         );
         expect(metadataPromise).rejects.toHaveProperty(
           "code",
@@ -95,8 +120,8 @@ describe("getTokenMetadata", () => {
       it("gets data from another contract: network isn't specified", async () => {
         expect(
           await getTokenMetadata(
-            carthagenetToolkit,
-            "KT19Rzko3FEAdh2DALvhsK8ExR8q7ApnHB8W"
+            delphinetToolkit,
+            "KT1SyGfy1CkYFdkx2hAPEn3ztZsWNMsiRgYq"
           )
         ).toEqual(tzip16ExpectedMetadata);
       });
@@ -104,28 +129,34 @@ describe("getTokenMetadata", () => {
       it("gets data from another contract: network is the same as TezosToolkit instance works in, specified with chain id", async () => {
         expect(
           await getTokenMetadata(
-            carthagenetToolkit,
-            "KT1G4zHU4VZ2emJmn8PAXrwdpyDK1aSJCjyB"
+            delphinetToolkit,
+            "KT1J6WPEyKPKzQxnQu7TYHQFPuBuHWdPcpt8"
           )
         ).toEqual(tzip16ExpectedMetadata);
       });
 
-      it("throws error if specified network is another than the network where TezosToolkit instance works", async () => {
-        const metadataPromise = getTokenMetadata(
-          carthagenetToolkit,
-          "KT1LKfJaj6X9sMm92Brnh7ytEs49uENPmeQk"
-        );
-        expect(metadataPromise).rejects.toHaveProperty(
-          "code",
-          MetadataParseErrorCode.INVALID_NETWORK_NAME
-        );
-        expect(metadataPromise).rejects.toBeInstanceOf(Error);
+      it("throws error if specified network is another than the network where TezosToolkit instance works", done => {
+        getTokenMetadata(
+          delphinetToolkit,
+          "KT1GuNs6HGekTDVqiVzMHDCKtANf1rKMpinW"
+        )
+          .then(() => {
+            done.fail();
+          })
+          .catch(e => {
+            expect(e).toHaveProperty(
+              "code",
+              MetadataParseErrorCode.INVALID_NETWORK_RPC_ID
+            );
+            expect(e).toBeInstanceOf(Error);
+            done();
+          });
       });
     });
   });
 
   describe("behavior for other storage types", () => {
-    it("parses metadata from '0' (by default) key of bigmap which is stored under 'token_metadata' key", async () => {
+    /* it("parses metadata from '0' (by default) key of bigmap which is stored under 'token_metadata' key", async () => {
       const { extras, ...restMetadata } = await getTokenMetadata(
         carthagenetToolkit,
         "KT1MxknJbDViFcvdU69SebP8444oSsUEX2PY"
@@ -167,7 +198,7 @@ describe("getTokenMetadata", () => {
         name: "TestTokenName",
         decimals: new BigNumber("8")
       });
-    });
+    }); */
 
     it("returns storage contents if storage doesn't match all schemas above", async () => {
       const { ledger, ...restProps } = await getTokenMetadata(
@@ -180,7 +211,7 @@ describe("getTokenMetadata", () => {
         name: "OroPocket Silver",
         paused: false,
         symbol: "XTZSilver",
-        totalSupply: new BigNumber(0)
+        totalSupply: new BigNumber(13090485453)
       });
     });
   });
