@@ -50,5 +50,7 @@
       "pre-commit": "tsdx lint"
     }
   },
-  "dependencies": {}
+  "dependencies": {
+    "sha256": "^0.2.0"
+  }
 }
