@@ -10,8 +10,7 @@ export enum MetadataParseErrorCode {
   CONTRACT_NOT_FOUND,
   INVALID_NETWORK_NAME,
   INVALID_NETWORK_RPC_ID,
-  FETCH_URL_ERROR,
-  NOT_ENOUGH_CREDENTIALS
+  FETCH_URL_ERROR
 }
 
 export class MetadataParseError extends Error {
@@ -86,18 +85,5 @@ export class FetchURLError extends MetadataParseError {
     public payload: FetchURLErrorPayload
   ) {
     super(message, MetadataParseErrorCode.FETCH_URL_ERROR);
-  }
-}
-
-export type NotEnoughCredentialsErrorPayload = {
-  fieldName: Exclude<keyof NetworkConfig, "tezos" | "toolkitNetworkId">;
-};
-
-export class NotEnoughCredentialsError extends MetadataParseError {
-  constructor(
-    message: string | undefined,
-    public payload: NotEnoughCredentialsErrorPayload
-  ) {
-    super(message, MetadataParseErrorCode.NOT_ENOUGH_CREDENTIALS);
   }
 }
