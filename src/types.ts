@@ -1,3 +1,10 @@
+import { TezosToolkit } from "@taquito/taquito";
+
+export interface NetworkConfig {
+  tezos: TezosToolkit;
+  toolkitNetworkId?: string;
+}
+
 export enum MetadataParseErrorCode {
   INVALID_CONTRACT_ADDRESS,
   CONTRACT_NOT_FOUND,
