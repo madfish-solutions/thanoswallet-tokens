@@ -3,8 +3,6 @@ import { TezosToolkit } from "@taquito/taquito";
 export interface NetworkConfig {
   tezos: TezosToolkit;
   toolkitNetworkId?: string;
-  tokenMetadataCallbackContract?: string;
-  tokenMetadataRegistryCallbackContract?: string;
 }
 
 export enum MetadataParseErrorCode {

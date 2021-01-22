@@ -34,7 +34,6 @@
     "@taquito/taquito": "^7.1.0"
   },
   "devDependencies": {
-    "@taquito/signer": "^7.0.0-beta.0",
     "@taquito/taquito": "7.1.0-preview-lambdaview.0",
     "bignumber.js": "^9.0.1",
     "husky": "^4.3.0",
@@ -50,7 +49,5 @@
       "pre-commit": "tsdx lint"
     }
   },
-  "dependencies": {
-    "sha256": "^0.2.0"
-  }
+  "dependencies": {}
 }
